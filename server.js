@@ -80,7 +80,8 @@ app.get('/oauth/callback', async (req, res) => {
     req.session.salesforce = {
       accessToken: conn.accessToken,
       instanceUrl: conn.instanceUrl,
-      userInfo: userInfo
+      userInfo: userInfo,
+      authMethod: 'oauth'
     };
     
     res.redirect('/?auth=success');
@@ -90,12 +91,53 @@ app.get('/oauth/callback', async (req, res) => {
   }
 });
 
+// Session ID authentication
+app.post('/api/auth/session', async (req, res) => {
+  const { sessionId, instanceUrl } = req.body;
+  
+  if (!sessionId || !instanceUrl) {
+    return res.status(400).json({ error: 'Session ID and Instance URL are required' });
+  }
+  
+  try {
+    // Test the session by making a simple API call
+    const conn = new jsforce.Connection({
+      serverUrl: instanceUrl,
+      sessionId: sessionId
+    });
+    
+    // Verify the session by getting user info
+    const userInfo = await conn.identity();
+    
+    // Store connection info in session
+    req.session.salesforce = {
+      accessToken: sessionId,
+      instanceUrl: instanceUrl,
+      userInfo: userInfo,
+      authMethod: 'session'
+    };
+    
+    res.json({ 
+      success: true, 
+      userInfo: userInfo,
+      message: 'Successfully authenticated with session ID'
+    });
+    
+  } catch (error) {
+    console.error('Session authentication error:', error);
+    res.status(401).json({ 
+      error: 'Invalid session ID or instance URL. Please check your credentials.' 
+    });
+  }
+});
+
 // Check authentication status
 app.get('/api/auth/status', (req, res) => {
   if (req.session.salesforce) {
     res.json({ 
       authenticated: true, 
-      userInfo: req.session.salesforce.userInfo 
+      userInfo: req.session.salesforce.userInfo,
+      authMethod: req.session.salesforce.authMethod
     });
   } else {
     res.json({ authenticated: false });
@@ -106,6 +148,19 @@ app.get('/api/auth/status', (req, res) => {
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
+});
+
+// Get current user's Salesforce session info (for easy copying)
+app.get('/api/auth/session-info', (req, res) => {
+  if (!req.session.salesforce) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  res.json({
+    sessionId: req.session.salesforce.accessToken,
+    instanceUrl: req.session.salesforce.instanceUrl,
+    authMethod: req.session.salesforce.authMethod
+  });
 });
 
 // Get Salesforce objects
