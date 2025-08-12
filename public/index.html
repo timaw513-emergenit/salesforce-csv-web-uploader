@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce CSV Uploader</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fab fa-salesforce"></i> Salesforce CSV Uploader</h1>
+            <div id="userInfo" class="user-info hidden">
+                <span id="userName"></span>
+                <span id="authMethod" class="auth-badge"></span>
+                <button id="logoutBtn" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Authentication Section -->
+            <div id="authSection" class="auth-section">
+                <div class="auth-card">
+                    <h2>Connect to Salesforce</h2>
+                    <p>Choose your authentication method to connect to your Salesforce org.</p>
+                    
+                    <!-- Session ID Authentication (Primary Option) -->
+                    <div class="auth-method session-auth">
+                        <h3><i class="fas fa-key"></i> Quick Connect (Session ID)</h3>
+                        <p class="auth-description">Use your current Salesforce session for instant connection - no OAuth redirect needed!</p>
+                        
+                        <form id="sessionForm" class="session-form">
+                            <div class="form-group">
+                                <label for="sessionId">
+                                    <i class="fas fa-id-card"></i> Session ID
+                                </label>
+                                <input type="text" id="sessionId" name="sessionId" 
+                                       placeholder="Paste your Salesforce session ID here..." 
+                                       class="session-input" required>
+                                <small class="help-text">
+                                    Get this from: Developer Console → Execute Anonymous → <code>UserInfo.getSessionId()</code>
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="instanceUrl">
+                                    <i class="fas fa-link"></i> Instance URL
+                                </label>
+                                <input type="url" id="instanceUrl" name="instanceUrl" 
+                                       placeholder="https://your-org.my.salesforce.com" 
+                                       class="session-input" required>
+                                <small class="help-text">
+                                    Your Salesforce org URL (e.g., https://company.my.salesforce.com)
+                                </small>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary btn-large">
+                                <i class="fas fa-bolt"></i> Quick Connect
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="auth-divider">
+                        <span>OR</span>
+                    </div>
+                    
+                    <!-- OAuth Authentication (Alternative) -->
+                    <div class="auth-method oauth-auth">
+                        <h3><i class="fab fa-salesforce"></i> OAuth Login</h3>
+                        <p class="auth-description">Standard OAuth flow with redirect to Salesforce login page.</p>
+                        <button id="loginBtn" class="btn btn-outline btn-large">
+                            <i class="fab fa-salesforce"></i> Login with Salesforce
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Application -->
+            <div id="appSection" class="app-section hidden">
+                <!-- Upload Form -->
+                <div class="upload-card">
+                    <h2><i class="fas fa-upload"></i> Upload CSV Data</h2>
+                    
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <!-- File Selection -->
+                        <div class="form-group">
+                            <label for="csvFile">
+                                <i class="fas fa-file-csv"></i> Select CSV File
+                            </label>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="csvFile" name="csvFile" accept=".csv" required>
+                                <div class="file-input-display">
+                                    <span class="file-placeholder">Choose CSV file...</span>
+                                    <button type="button" class="btn btn-outline">Browse</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Object Selection -->
+                        <div class="form-group">
+                            <label for="objectName">
+                                <i class="fas fa-database"></i> Salesforce Object
+                            </label>
+                            <select id="objectName" name="objectName" required>
+                                <option value="">Select an object...</option>
+                            </select>
+                        </div>
+
+                        <!-- Operation Selection -->
+                        <div class="form-group">
+                            <label for="operation">
+                                <i class="fas fa-cogs"></i> Operation
+                            </label>
+                            <select id="operation" name="operation" required>
+                                <option value="">Select operation...</option>
+                                <option value="insert">Insert (Create new records)</option>
+                                <option value="update">Update (Modify existing records)</option>
+                                <option value="upsert">Upsert (Insert or Update)</option>
+                            </select>
+                        </div>
+
+                        <!-- External ID Field (for upsert) -->
+                        <div id="externalIdGroup" class="form-group hidden">
+                            <label for="externalIdField">
+                                <i class="fas fa-key"></i> External ID Field
+                            </label>
+                            <select id="externalIdField" name="externalIdField">
+                                <option value="">Select external ID field...</option>
+                            </select>
+                        </div>
+
+                        <!-- Field Mapping Preview -->
+                        <div id="fieldMapping" class="field-mapping hidden">
+                            <h3><i class="fas fa-arrows-alt-h"></i> Field Mapping Preview</h3>
+                            <div id="mappingContent"></div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="submitBtn" class="btn btn-primary btn-large" disabled>
+                            <i class="fas fa-cloud-upload-alt"></i> Upload to Salesforce
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Results Section -->
+                <div id="resultsSection" class="results-section hidden">
+                    <h2><i class="fas fa-chart-bar"></i> Upload Results</h2>
+                    <div id="resultsContent"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Processing...</p>
+            </div>
+        </div>
+
+        <!-- Alert Messages -->
+        <div id="alertContainer" class="alert-container"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
